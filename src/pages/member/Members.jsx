@@ -157,7 +157,7 @@ export default function Member() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr className="text-gray-500">
+                  <tr className="text-gray-500 hover:bg-gray-100">
                     <td className="border-t-0 px-4 py-3 text-sm font-medium whitespace-nowrap text-left">
                       1
                     </td>

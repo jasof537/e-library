@@ -1,12 +1,8 @@
 import { useNavigate } from "react-router-dom";
-
+import { useAuth } from "../context/AuthContext";
 export default function Menu() {
   const navigate = useNavigate();
-
-  const handleLogOut = (event) => {
-    event.preventDefault();
-    navigate("/");
-  };
+  const {user, logout} = useAuth();
 
   const handleHome = (event) => {
     event.preventDefault();
@@ -97,7 +93,7 @@ export default function Menu() {
           <div className="hidden md:flex items-center space-x-3">
             <a
               href="#"
-              onClick={handleLogOut}
+              onClick={logout}
               className="py-2 px-3 text-gray-500 font-semibold hover:text-gray-700 transition duration-300 flex items-center justify-between">
               {/* <i className=""></i> */}
               <svg
