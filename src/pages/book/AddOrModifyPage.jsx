@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Menu from "../Menu";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -11,13 +11,14 @@ export default function AddOrModifyPage() {
   const location = useLocation();
   const { id } = useParams();
   const formType = location.pathname.split("/")[2];
-  // const [error, setError] = useState("");
+  const [authors, setAuthors] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
+    const dataUser = JSON.parse(user);
+    const userToken = dataUser.token;
     const getNextBookCode = async () => {
       try {
-        const dataUser = JSON.parse(user);
-        const userToken = dataUser.token;
         const response = await fetch("http://127.0.0.1:8000/api/bookCode", {
           method: 'GET',
           headers: {
@@ -37,9 +38,8 @@ export default function AddOrModifyPage() {
     }
 
     const loadBookData = async () => {
+      setIsLoading(true)
       try {
-        const dataUser = JSON.parse(user);
-        const userToken = dataUser.token;
         const response = await fetch(`http://127.0.0.1:8000/api/books/${id}`, {
           method: 'GET',
           headers: {
@@ -60,8 +60,34 @@ export default function AddOrModifyPage() {
         setValue("qty", bookData.qty);
       } catch (err) {
         setError(err.message);
+      } finally {
+        setIsLoading(false)
       }
     }
+
+    const loadAuthorData = async  () => {
+      setAuthors([])
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/api/authors`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${userToken}`,
+            'Accept': 'application/json'
+          }
+        });
+        const data = await response.json();
+
+        if (data.message) {
+          throw new Error(data.message || 'Something went wrong. please reload page!');
+        }
+
+        setAuthors(data.data)
+      } catch (err) {
+        setError(err.message);
+      }
+    }
+
+    loadAuthorData()
 
     if (formType === "add") {
       getNextBookCode();
@@ -86,7 +112,6 @@ export default function AddOrModifyPage() {
         formData.append("cover", cover);
       }
 
-
       formData.append("qty", req.qty);
       if (formType === "edit") {
         formData.append("_method", "PUT");
@@ -106,12 +131,10 @@ export default function AddOrModifyPage() {
       if (data.message) {
         throw new Error(data.message || 'something went wrong. please try again.');
       }
-      window.location.href = '/book';
+      navigate('/book');
     } catch (err) {
       setError(err.message || 'something went wrong. please try again!')
-    } finally {
-      // window.location.href = '/book';
-    }
+    } 
   }
 
   const handleBack = (e) => {
@@ -119,14 +142,13 @@ export default function AddOrModifyPage() {
     navigate("/book");
   };
 
-
   return (
     <div>
       <Menu />
       <form
         className="max-w-6xl mx-auto my-4 px-5 py-3"
         onSubmit={handleSubmit(submit)}>
-        {error && <div className="w-full flex mb-2 px-5 py-3 rounded bg-red-400 text-gray-700 font-normal">{error}</div>}
+        {error && <div className="w-full flex mb-2 px-5 py-3 rounded bg-red-400 text-white font-normal">{error}</div>}
         <div className="flex items-center space-x-3 mb-3">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -185,12 +207,12 @@ export default function AddOrModifyPage() {
               className="block text-gray-700 text-sm font-bold mb-2">
               Author
             </label>
-            <input
-              type="text"
-              {...register("author_id", { required: "Please input author_id" })}
-              className="px-1 py-1 border border-gray-300 focus:border-indigo-500 focus:outline-indigo-500 rounded-md shadow-sm block w-full"
-              placeholder="Author"
-            />
+            <select {...register("author_id", { required: "Please input author_id" })}
+            className="px-1 py-1 border border-gray-300 focus:border-indigo-500 focus:outline-indigo-500 rounded-md shadow-sm block w-full">
+              {authors.map((row, idx) => (
+                <option value={row.id} key={idx}>{row.author_name}</option>
+              ))}
+            </select>
             {errors.author_id && (
               <p className="block text-red-600">{errors.author_id.message}</p>
             )}
@@ -222,10 +244,6 @@ export default function AddOrModifyPage() {
               {...register('cover')}
               className="px-1 py-1 border border-gray-300 focus:border-indigo-500 focus:outline-indigo-500 rounded-md shadow-sm block w-full"
               placeholder="Cover"
-            // value={formData.bookCover}
-            // onChange={(e) =>
-            //   setFormData({ ...formData, bookCover: e.target.value })
-            // }
             />
             {errors.bookCover && (
               <p className="block text-red-600">{errors.bookCover}</p>
@@ -252,7 +270,8 @@ export default function AddOrModifyPage() {
             <div className="flex justify-center gap-4">
               <button
                 type="submit"
-                className="flex items-center justify-center bg-blue-500 hover:bg-blue-700 w-1/2 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                className={`flex items-center justify-center bg-blue-500 ${!isLoading ? 'hover:bg-blue-700' : ''}  w-1/2 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline`}
+                disabled={isLoading}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"

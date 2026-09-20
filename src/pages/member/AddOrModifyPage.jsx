@@ -1,75 +1,142 @@
 import { useEffect, useState } from "react";
 import Menu from "../Menu";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { useForm } from "react-hook-form";
 
 export default function AddOrModifyPage() {
-  const [formType, setFormType] = useState("Add");
-  const [errors, setErrors] = useState({});
-  const [formData, setFormData] = useState({
-    idMember: "IDM-02304234",
-    nikMember: "",
-    nameMember: "",
-    genderMember: "",
-    joinMember: new Date().toISOString().split("T")[0],
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      id_member: "",
+      member_name: "",
+      nik: "",
+      gender: "",
+      join_date: new Date().toISOString().split("T")[0],
+    },
   });
 
-  const defaultErrors = {
-    idMember: "",
-    nikMember: "",
-    nameMember: "",
-    genderMember: "",
-    joinMember: "",
-  };
+  const [loading, setLoading] = useState(false);
 
+  const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const formType = location.pathname.split("/")[2];
+
+  const { user, setError, error } = useAuth();
+
+
 
   useEffect(() => {
-    const handleFormType = () => {
-      let formTypes = location.pathname.split("/")[2];
-      formTypes = formTypes.charAt(0).toUpperCase() + formTypes.slice(1);
-      setFormType(formTypes);
+    if (!user) return;
+
+    const dataUser = JSON.parse(user);
+    const userToken = dataUser.token;
+
+    const loadData = async () => {
+      setLoading(true);
+
+      try {
+        if (formType === "add") {
+          const response = await fetch(
+            "http://127.0.0.1:8000/api/memberCode",
+            {
+              headers: {
+                Authorization: `Bearer ${userToken}`,
+                Accept: "application/json",
+              },
+            }
+          );
+          const data = await response.json();
+
+          if (!data.success) {
+            throw new Error(data.message || "Something went wrong");
+          }
+
+          setValue("id_member", data.memberCode);
+        } else {
+          const response = await fetch(
+            `http://127.0.0.1:8000/api/members/${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${userToken}`,
+                Accept: "application/json",
+              },
+            }
+          );
+
+          const data = await response.json();
+          if (data.message) {
+            setError(data.message || "Something went wrong");
+          }
+
+          const member = data.data;
+
+          reset({
+            id_member: member.id_member,
+            member_name: member.member_name,
+            nik: member.nik,
+            gender: member.gender,
+            join_date: member.join_date,
+          });
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    handleFormType();
-  });
+    loadData();
+  }, [user, id, formType, reset, setValue, setError]);
 
   const handleBack = (e) => {
     e.preventDefault();
     navigate("/member");
   };
 
-  const validate = () => {
-    let newErrors = {};
+  const handleSave = async (req) => {
+    if (!user) return
+    try {
+      const dataUser = JSON.parse(user);
+      const userToken = dataUser.token;
+      const formData = new FormData();
 
-    if (!formData.idMember) newErrors.idMember = "ID Member is required";
-    if (!formData.nikMember) newErrors.nikMember = "NIK Member is required";
+      formData.append("id_member", req.id_member);
+      formData.append("nik", req.nik);
+      formData.append("member_name", req.member_name);
+      formData.append("gender", req.gender);
+      formData.append("join_date", req.join_date);
 
-    const numericRegex = /^[0-9]*$/;
-    if (!numericRegex.test(formData.nikMember))
-      newErrors.nikMember = "NIK Member must be number 0-9";
-    if (
-      formData.nikMember &&
-      numericRegex.test(formData.nikMember) &&
-      formData.nikMember.length < 16
-    )
-      newErrors.nikMember = "NIK Member less than 16 character";
+      let url = ""
+      if (formType === "edit") {
+        formData.append("_method", "PUT");
+        url = `http://127.0.0.1:8000/api/members/${id}`;
+      } else {
+        url = 'http://127.0.0.1:8000/api/members';
+      }
 
-    if (!formData.nameMember) newErrors.nameMember = "Name Member is required";
-    if (!formData.genderMember)
-      newErrors.genderMember = "Gender Member is required";
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${userToken}`,
+        },
+        body: formData
+      });
 
-    return newErrors;
-  };
+      const data = await response.json();
 
-  const handleSumbit = (e) => {
-    e.preventDefault();
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length === 0) {
-      setErrors(defaultErrors);
-      console.log("submitted ", validationErrors);
-    } else {
-      setErrors(validationErrors);
+      if (data.message) {
+        throw new Error(data.message || 'something went wrong. please try again.');
+      }
+      navigate('/member');
+    } catch (err) {
+      setError(err.message || 'something went wrong. please try again!')
     }
   };
 
@@ -91,13 +158,14 @@ export default function AddOrModifyPage() {
               d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"
             />
           </svg>
-          <span className="text-gray-500 font-bold text-xl">
+          <span className="text-gray-500 font-bold text-xl capitalize">
             {formType} Member
           </span>
         </div>
+        {error && <div className="w-full flex mb-2 px-5 py-3 rounded bg-red-400 text-white font-normal">{error}</div>}
         <form
           className="flex flex-col shadow-md px-3 py-4 mb-6 mt-5"
-          onSubmit={handleSumbit}>
+          onSubmit={handleSubmit(handleSave)}>
           <div className="mb-4">
             <label
               htmlFor="idMember"
@@ -105,16 +173,13 @@ export default function AddOrModifyPage() {
               ID Member
             </label>
             <input
-              type="text"
-              name="idMember"
-              id="idMember"
+              {...register("id_member", { required: "Please input id member" })}
               className="px-1 py-1 border border-gray-300 focus:border-indigo-500 focus:outline-indigo-500 rounded-md shadow-sm block w-full"
               placeholder="ID Member"
-              value={formData.idMember}
               disabled
             />
-            {errors.idMember && (
-              <p className="block text-red-500">{errors.idMember}</p>
+            {errors.id_member && (
+              <p className="block text-red-500">{errors.id_member.message}</p>
             )}
           </div>
           <div className="mb-4">
@@ -124,18 +189,12 @@ export default function AddOrModifyPage() {
               NIK
             </label>
             <input
-              type="text"
-              name="nikMember"
-              id="nikMember"
+              {...register("nik", { required: "Please input NIK", minLength: { value: 16, message: "NIK must be at least 16 digits" } })}
               className="px-1 py-1 border border-gray-300 focus:border-indigo-500 focus:outline-indigo-500 rounded-md shadow-sm block w-full"
               placeholder="NIK Member"
-              value={formData.nikMember}
-              onChange={(e) =>
-                setFormData({ ...formData, nikMember: e.target.value })
-              }
             />
-            {errors.nikMember && (
-              <p className="block text-red-500">{errors.nikMember}</p>
+            {errors.nik && (
+              <p className="block text-red-500">{errors.nik.message}</p>
             )}
           </div>
           <div className="mb-4">
@@ -145,18 +204,12 @@ export default function AddOrModifyPage() {
               Name
             </label>
             <input
-              type="text"
-              name="nameMember"
-              id="nameMember"
+              {...register("member_name", { required: "Please input member name" })}
               className="px-1 py-1 border border-gray-300 focus:border-indigo-500 focus:outline-indigo-500 rounded-md shadow-sm block w-full"
               placeholder="Name Member"
-              value={formData.nameMember}
-              onChange={(e) =>
-                setFormData({ ...formData, nameMember: e.target.value })
-              }
             />
-            {errors.nameMember && (
-              <p className="block text-red-500">{errors.nameMember}</p>
+            {errors.member_name && (
+              <p className="block text-red-500">{errors.member_name.message}</p>
             )}
           </div>
           <div className="mb-4">
@@ -168,25 +221,19 @@ export default function AddOrModifyPage() {
             <div className="flex items-center gap-2">
               <input
                 type="radio"
-                name="genderMember"
-                value={"M"}
-                onChange={(e) =>
-                  setFormData({ ...formData, genderMember: e.target.value })
-                }
+                {...register("gender", { required: "Please choose gender" })}
+                value={"L"}
               />
-              <label htmlFor="">Male</label>
+              <label htmlFor="">Pria</label>
               <input
                 type="radio"
-                name="genderMember"
-                value={"F"}
-                onChange={(e) =>
-                  setFormData({ ...formData, genderMember: e.target.value })
-                }
+                {...register("gender")}
+                value={"P"}
               />
-              <label htmlFor="">Female</label>
+              <label htmlFor="">Perempuan</label>
             </div>
-            {errors.genderMember && (
-              <p className="block text-red-500">{errors.genderMember}</p>
+            {errors.gender && (
+              <p className="block text-red-500">{errors.gender.message}</p>
             )}
           </div>
           <div className="mb-4">
@@ -196,19 +243,16 @@ export default function AddOrModifyPage() {
               Join Date
             </label>
             <input
-              type="date"
-              name="joinMember"
-              id="joinMember"
+              {...register("join_date")}
               className="px-1 py-1 border border-gray-300 focus:border-indigo-500 focus:outline-indigo-500 rounded-md shadow-sm block w-full"
               disabled
-              value={formData.joinMember}
             />
           </div>
           <div className="mb-4">
             <div className="flex justify-center gap-4">
               <button
                 type="submit"
-                className="flex items-center justify-center bg-blue-500 hover:bg-blue-700 w-1/2 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-none">
+                className={`flex items-center justify-center bg-blue-500 ${loading ? '' : 'hover:bg-blue-700'}  w-1/2 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-none`} disabled={loading}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"

@@ -80,7 +80,7 @@ export default function Book() {
 
       const data = await response.json();
 
-      if (!data.success) {
+      if (!data.message) {
         throw new Error(data.message || 'Error when delete data');
       }
 
@@ -94,26 +94,20 @@ export default function Book() {
     }
   }
 
-  // useEffect(() => {
-  //   loadBookData();
-  // }, []);
-  useEffect(() => {
-    setCurrentPage(1)
-    loadBookData();
-  }, [isSearch]);
 
   useEffect(() => {
     loadBookData();
-    // if (message || error) {
-    //   const timer = setTimeout(() => {
-    //     setError("")
-    //     setMessage("")
-    //   }, 1000);
-
-    //   return () => clearTimeout(timer);
-    // }
-
   }, [currentPage]);
+
+   const handleSearchSubmit = (e) => {
+    // If we are already on page 1, manually call loadData, 
+    // otherwise setting it to 1 will trigger the useEffect automatically
+    if (currentPage === 1) {
+      loadBookData();
+    } else {
+      setCurrentPage(1);
+    }
+  }
 
   const loadTable = () => {
     return (
@@ -162,7 +156,7 @@ export default function Book() {
               <td colSpan={8}>
                 <div
                   className="flex flex-col items-center text-base font-bold text-gray-800 mb-3 ">
-                  <img src={IconNotDataFound} />
+                  <img src={IconNotDataFound} width={200} height={200}/>
                   No data found
                 </div>
               </td>
@@ -224,7 +218,7 @@ export default function Book() {
 
   const loadSearchLayout = () => {
     return (
-      <form className="flex flex-col shadow-md px-3 py-4 mb-6 mt-5" onSubmit={handleSubmit(loadBookData)}>
+      <form className="flex flex-col shadow-md px-3 py-4 mb-6 mt-5" onSubmit={handleSubmit(handleSearchSubmit)}>
         <div className="grid md:grid-cols-2 mb-3">
           <div className="md:flex">
             <div className="md:w-1/5 justify-center items-center">
@@ -311,6 +305,7 @@ export default function Book() {
     if (books.length === 0) return null;
 
     const pages = [];
+    if (paginationData.last_page < 2) return pages;
     for (let i = 1; i <= paginationData.last_page; i++) {
       pages.push(
         <button
@@ -369,7 +364,7 @@ export default function Book() {
               </div>
             </div>
             {error && <div className="w-full flex mb-2 px-5 py-3 rounded bg-red-400 text-white font-normal">{error}</div>}
-            {message && <div className="w-full flex mb-2 px-5 py-3 rounded bg-green-300 text-gray-600 font-normal">{message}</div>}
+            {message && <div className="w-full flex mb-2 px-5 py-3 rounded bg-green-500 text-white font-normal">{message}</div>}
             <div className="w-full overflow-x-auto border border-gray-300 mb-3">
               {loadTable()}
             </div>

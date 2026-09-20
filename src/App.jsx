@@ -33,7 +33,7 @@ function App() {
               <Route path="/book/edit/:id" element={<AddOrModifyPageBook />} />
 
               <Route path="/member/add" element={<AddOrModifyPageMember />} />
-              <Route path="/member/edit" element={<AddOrModifyPageMember />} />
+              <Route path="/member/edit/:id" element={<AddOrModifyPageMember />} />
 
               <Route path="/loan/add" element={<AddOrModifyPageLoan />} />
             </Route>
